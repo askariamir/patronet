@@ -8,6 +8,7 @@ use App\Repositories\AttributeRepositoryInterface;
 use App\Repositories\ProductRepositoryInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class BrandController extends Controller
@@ -36,6 +37,7 @@ class BrandController extends Controller
             'brands' => $brands
         ]);
     }
+
     public function show($id)
     {
         $brand = $this->brandRepository->find($id);  // Fetch brand by ID
@@ -48,6 +50,7 @@ class BrandController extends Controller
             'brand' => $brand
         ]);
     }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -58,55 +61,91 @@ class BrandController extends Controller
         DB::beginTransaction();
 
         try {
+            // Create the brand
             $brand = $this->brandRepository->create([
-                'name' => $validated['brand']['name']
+                'name' => $validated['brand']['name'],
             ]);
 
-            $attributes = $validated['brand']['attributes'];
-            $attributeIds = [];
+            // Create attributes and their values
+            $attributeIds = $this->createAttributesAndValues($validated['brand']['attributes'], $brand->id);
 
-            foreach ($attributes as $attrName => $values) {
-
-                $attribute = $this->attributeRepository->create([
-                    'name' => $attrName,
-                    'brand_id' => $brand->id
-                ]);
-
-                foreach ($values as $value) {
-
-                    $this->attributeValueRepository->create([
-                        'attribute_id' => $attribute->id,
-                        'value' => $value['value'],
-                        'description' => $value['description']
-                    ]);
-                }
-
-
-                $attributeIds[$attrName] = array_column($values, 'value');
-            }
-
-            $combinations = $this->generateCombinations($attributeIds);
-
-            foreach ($combinations as $combination) {
-
-                $product_code = implode('-', array_values($combination));
-
-
-                $this->productRepository->create([
-                    'brand_id' => $brand->id,
-                    'product_code' => $product_code,
-                    'combination' => json_encode($combination)
-                ]);
-            }
+            //  Generate combinations and create products
+            $this->createProducts($brand->id, $attributeIds);
 
             DB::commit();
 
             return response()->json(['message' => 'Brand and products created successfully!'], 201);
         } catch (\Exception $e) {
             DB::rollBack();
+
+            Log::error('Error while creating brand and products: ' . $e->getMessage());
+
             return response()->json(['error' => 'An error occurred while creating the brand.'], 500);
         }
     }
+    private function createAttributesAndValues(array $attributes, $brandId)
+    {
+        $attributeIds = [];
+
+        // ویژگی‌های مربوط به برند دیتابیس ذخیره می‌شوند
+        foreach ($attributes as $attrName => $values) {
+            $attribute = $this->attributeRepository->create([
+                'name' => $attrName,
+                'brand_id' => $brandId
+            ]);
+
+            //  مقادیر ویژگی اضافه می‌شوند
+            $attributeValues = array_map(function($value) use ($attribute) {
+                return [
+                    'attribute_id' => $attribute->id,
+                    'value' => $value['value'],
+                    'description' => $value['description']
+                ];
+            }, $values);
+
+            $this->attributeValueRepository->insert($attributeValues);
+
+            $attributeIds[$attrName] = array_column($values, 'value');
+
+        }
+        return $attributeIds;
+    }
+    private function createProducts($brandId, array $attributeIds)
+    {
+        $combinations = $this->generateCombinations($attributeIds);
+        $products = [];
+
+        foreach ($combinations as $combination) {
+            $productCode = implode('-', array_values($combination));
+            $products[] = [
+                'brand_id' => $brandId,
+                'product_code' => $productCode,
+                'combination' => json_encode($combination),
+            ];
+        }
+
+        $this->productRepository->insert($products);
+    }
+    private function generateCombinations($attributes)
+    {
+        $result = [[]];
+        // برای هر ویژگی یک لوپ ایجاد می‌شود
+        foreach ($attributes as $key => $values) {
+            // برای ذخیره ترکیب جدید
+            $temp = [];
+
+            foreach ($result as $product) {
+            // چیزی که درحال حاضر از result داریم درواقع همون productمونه که کم کم تکمیل میشه
+                foreach ($values as $value) {
+                    $temp[] = array_merge($product, [$key => $value]);
+                }
+            }
+            $result = $temp;
+        }
+
+        return $result;
+    }
+
     public function update($id, Request $request)
     {
         DB::beginTransaction();
@@ -119,12 +158,9 @@ class BrandController extends Controller
                 return response()->json(['error' => 'Brand not found'], 404);
             }
 
-
             $this->attributeRepository->deleteByBrandId($id);
 
-
             $this->productRepository->deleteByBrandId($id);
-
 
             $attributes = $request->input('brand.attributes');
             $attributeIds = [];
@@ -148,7 +184,6 @@ class BrandController extends Controller
                 $attributeIds[$attrName] = array_column($values, 'value');
             }
 
-
             $combinations = $this->generateCombinations($attributeIds);
 
             foreach ($combinations as $combination) {
@@ -168,6 +203,7 @@ class BrandController extends Controller
             return response()->json(['error' => 'Error updating brand'], 500);
         }
     }
+
     public function destroy($id)
     {
         DB::beginTransaction();
@@ -186,23 +222,6 @@ class BrandController extends Controller
             return response()->json(['error' => 'Error deleting brand'], 500);
         }
     }
-    private function generateCombinations($attributes)
-    {
-        $result = [[]];
 
-        foreach ($attributes as $key => $values) {
-            $temp = [];
-
-            foreach ($result as $product) {
-                foreach ($values as $value) {
-                    $temp[] = array_merge($product, [$key => $value]);
-                }
-            }
-
-            $result = $temp;
-        }
-
-        return $result;
-    }
 }
 

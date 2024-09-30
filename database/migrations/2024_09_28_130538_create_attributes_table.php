@@ -12,10 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('attributes', function (Blueprint $table) {
-            $table->id();  // Unique identifier for the attribute
-            $table->string('name');  // Name of the attribute (e.g., "color", "size")
-            $table->foreignId('brand_id')  // Links the attribute to a specific brand
-            ->constrained()->onDelete('cascade');  // If the brand is deleted, its attributes are also deleted
+            $table->id();
+            $table->string('name');
+            $table->foreignId('brand_id')
+            ->constrained()->onDelete('cascade');
             $table->timestamps();
         });
 

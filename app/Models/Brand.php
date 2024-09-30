@@ -7,14 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class Brand extends Model
 {
-    protected $fillable = ['name'];
+    protected $guarded = ['id'];
 
 
     public function attributes()
     {
         return $this->hasMany(Attribute::class);
     }
-
 
     public function products()
     {
@@ -24,7 +23,6 @@ class Brand extends Model
     protected static function boot()
     {
         parent::boot();
-
 
         static::deleting(function ($brand) {
             $brand->attributes()->each(function ($attribute) {

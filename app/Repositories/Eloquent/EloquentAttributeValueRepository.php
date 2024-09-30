@@ -18,4 +18,9 @@ class EloquentAttributeValueRepository implements AttributeValueRepositoryInterf
     {
         return $this->model->create($data);
     }
+
+    public function insert(array $data)
+    {
+        return $this->model->insert($data);
+    }
 }

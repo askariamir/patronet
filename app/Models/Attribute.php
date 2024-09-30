@@ -23,7 +23,6 @@ class Attribute extends Model
     {
         parent::boot();
 
-
         static::deleting(function ($attribute) {
             $attribute->values()->each(function ($value) {
                 $value->delete();

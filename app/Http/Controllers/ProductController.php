@@ -57,7 +57,6 @@ class ProductController extends Controller
         ]);
     }
 
-
     public function search(Request $request)
     {
         $brandName = $request->input('brand_name');
@@ -87,8 +86,6 @@ class ProductController extends Controller
             return response()->json(['error' => 'Error deleting product'], 500);
         }
     }
-
-
 
 
 }

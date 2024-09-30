@@ -53,22 +53,64 @@ class EloquentProductRepository implements ProductRepositoryInterface
     }
 
 
+//    public function search($brandName, $productCode)
+//    {
+//        return $this->model->whereHas('brand', function ($query) use ($brandName) {
+//            if ($brandName) {
+//                $query->where('name', 'like', "%{$brandName}%");
+//            }
+//        })
+//            ->when($productCode, function ($query, $productCode) {
+//                $query->where('product_code', 'like', "%{$productCode}%");
+//            })
+//            ->with('brand')
+//            ->get();
+//    }
+
     public function search($brandName, $productCode)
     {
-        return $this->model->whereHas('brand', function ($query) use ($brandName) {
+        $products = $this->model->whereHas('brand', function ($query) use ($brandName) {
             if ($brandName) {
                 $query->where('name', 'like', "%{$brandName}%");
             }
         })
-            ->when($productCode, function ($query, $productCode) {
-                $query->where('product_code', 'like', "%{$productCode}%");
-            })
             ->with('brand')
             ->get();
+
+        $exactMatches = collect();
+        $similarProducts = collect();
+
+        if ($productCode) {
+            $diffCharCount = 1;
+
+            $products->each(function ($product) use ($productCode, $diffCharCount, &$exactMatches, &$similarProducts) {
+                $diffCount = levenshtein($productCode, $product->product_code);
+
+                if ($diffCount == 0) {
+                    $exactMatches->push($product);
+                }
+                elseif ($diffCount <= $diffCharCount) {
+                    $similarProducts->push($product);
+                }
+            });
+
+            return [
+                'exact_matches' => $exactMatches->values(),
+                'similar_products' => $similarProducts->values()
+            ];
+        }
+
+        return $products;
     }
+
 
     public function deleteByBrandId($brandId)
     {
         return $this->model->where('brand_id', $brandId)->delete();
+    }
+
+    public function insert(array $data)
+    {
+        return $this->model->insert($data);
     }
 }

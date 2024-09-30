@@ -12,11 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('attribute_values', function (Blueprint $table) {
-            $table->id();  // Primary key
-            $table->foreignId('attribute_id')  // Foreign key to the attributes table
+            $table->id();
+            $table->foreignId('attribute_id')
             ->constrained()->onDelete('cascade');
-            $table->string('value');  // The shorthand value (e.g., "B" for Blue)
-            $table->string('description');  // Human-readable description (e.g., "Blue")
+            $table->string('value');
+            $table->string('description');
             $table->timestamps();
         });
 

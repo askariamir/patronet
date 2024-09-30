@@ -53,5 +53,4 @@ class EloquentBrandRepository implements BrandRepositoryInterface
     }
 
 
-
 }
